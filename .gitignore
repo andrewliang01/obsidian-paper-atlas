@@ -1,0 +1,7 @@
+node_modules/
+.npm-cache/
+.preview-tmp/
+release/
+*.zip
+tests/*.cjs
+*.log
