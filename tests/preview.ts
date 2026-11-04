@@ -133,7 +133,12 @@ async function main(): Promise<void> {
   await (view as unknown as { onOpen(): Promise<void> }).onOpen();
   const internal = view as unknown as {
     index: { all: Array<{ path: string; title: string; understandingSource: string; images: unknown[]; primaryField: string }> };
-    board: { nodes: unknown[]; edges: unknown[]; viewport: { x: number; y: number; z: number } };
+    board: {
+      nodes: unknown[];
+      edges: unknown[];
+      years: Array<{ id: string; year: number; y: number }>;
+      viewport: { x: number; y: number; z: number };
+    };
     viewport: { x: number; y: number; z: number };
     edgeSelection: string | null;
     refreshSelection(): void;
@@ -153,20 +158,27 @@ async function main(): Promise<void> {
 
   const width = 380;
   const height = 470;
-  const nodes = chosen.map((paper, index) => ({
-    id: `n${index}`,
-    paper: paper.path,
-    x: (index % 2) * (width + 42),
-    y: Math.floor(index / 2) * (height + 42),
-    w: width,
-    h: height,
-  }));
+  // 按论文年份放进对应的年份带，避免横线穿过卡片
+  const yearRows = new Map<number, number>();
+  const nodes = chosen.map((paper, index) => {
+    const year = Number((paper as unknown as { date?: string }).date?.slice(0, 4) || 0);
+    const line = internal.board.years.find((entry) => entry.year === year);
+    const row = yearRows.get(year) ?? 0;
+    yearRows.set(year, row + 1);
+    return {
+      id: `n${index}`,
+      paper: paper.path,
+      x: row * (width + 42),
+      y: (line ? line.y : 0) + 80,
+      w: width,
+      h: height,
+    };
+  });
 
   internal.board.nodes = nodes;
   internal.board.edges = [
-    { id: 'e1', from: 'n0', to: 'n1', label: '对比' },
-    { id: 'e2', from: 'n1', to: 'n2', label: '改进', color: '#2f9e44' },
-    { id: 'e3', from: 'n0', to: 'n3' },
+    { id: 'e1', from: 'n4', to: 'n3', label: '同一问题' },
+    { id: 'e2', from: 'n2', to: 'n1', label: '对比', color: '#2f9e44' },
   ];
   const css = readFileSync(join(PLUGIN_DIR, 'styles.css'), 'utf8');
   const fileBase = `file://${encodeURI(VAULT)}/`;
@@ -208,11 +220,11 @@ async function main(): Promise<void> {
   const firstEdge = internal.board.edges[0] as unknown as { id: string };
   internal.edgeSelection = firstEdge.id;
   internal.refreshSelection();
-  writePreview('preview-near.html', 0.82, 40, 70);
+  writePreview('preview-near.html', 0.78, 40, 40);
   internal.edgeSelection = null;
   internal.refreshSelection();
-  writePreview('preview-mid.html', 0.42, 90, 150);
-  writePreview('preview-far.html', 0.18, 160, 260);
+  writePreview('preview-mid.html', 0.42, 60, 30);
+  writePreview('preview-far.html', 0.18, 120, 20);
 
   // dark-theme variant of the close-up (Obsidian default dark palette)
   const darkVars = `:root {

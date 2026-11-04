@@ -1,6 +1,14 @@
 import { ItemView, Menu, Notice, TFile, ViewStateResult, WorkspaceLeaf } from 'obsidian';
 import type PaperAtlasPlugin from '../main';
-import type { AtlasEdge, AtlasNode, EdgeArrow, EdgeSide, EditableField, PaperEntry } from '../types';
+import type {
+  AtlasEdge,
+  AtlasNode,
+  EdgeArrow,
+  EdgeSide,
+  EditableField,
+  PaperEntry,
+  YearLine,
+} from '../types';
 import { MIN_CARD_HEIGHT, MIN_CARD_WIDTH, STATUS_LABEL } from '../types';
 import { emptyBoard, findNodeByPaper, parseBoard, serializeBoard, uid } from '../core/board';
 import { PaperIndex } from '../core/index';
@@ -16,6 +24,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 const MIN_ZOOM = 0.05;
 const MAX_ZOOM = 3;
 const EXPAND_DELTA = 200;
+const YEAR_BAND_HEIGHT = 720;
 
 type Drag =
   | { kind: 'pan'; clientX: number; clientY: number; originX: number; originY: number; moved: boolean }
@@ -65,6 +74,11 @@ interface SidebarPress {
   ghost: HTMLElement | null;
 }
 
+function yearOfDate(date: string): number {
+  const match = /^(\d{4})/.exec(date || '');
+  return match ? Number(match[1]) : 0;
+}
+
 function withAlpha(color: string, alpha: string): string {
   return /^#[0-9a-f]{6}$/i.test(color) ? `${color}${alpha}` : color;
 }
@@ -102,6 +116,11 @@ export class AtlasView extends ItemView {
   private groupLayer!: HTMLElement;
   private legendEl!: HTMLElement;
   private edgeToolbar!: HTMLElement;
+  private yearLayer!: HTMLElement;
+  private yearLabelLayer!: HTMLElement;
+  private yearSelect!: HTMLSelectElement;
+  private yearFocus = '';
+  private yearEls = new Map<string, { line: HTMLElement; label: HTMLElement }>();
   private searchInput!: HTMLInputElement;
   private fieldFilter!: HTMLSelectElement;
   private statusFilter!: HTMLSelectElement;
@@ -201,6 +220,8 @@ export class AtlasView extends ItemView {
 
     const stage = el('div', 'pa-stage');
     this.stage = stage;
+    this.yearLayer = el('div', 'pa-year-layer');
+    this.yearLabelLayer = el('div', 'pa-year-label-layer');
 
     const world = el('div', 'pa-world');
     this.world = world;
@@ -243,7 +264,27 @@ export class AtlasView extends ItemView {
       }),
     );
 
-    stage.append(world, this.emptyHint, this.marqueeEl, this.legendEl, this.edgeToolbar, toolbar);
+    const yearFocus = el('div', 'pa-year-focus');
+    yearFocus.appendChild(el('span', 'pa-year-caption', '年份'));
+    this.yearSelect = el('select', 'pa-select pa-year-select');
+    this.yearSelect.addEventListener('change', () => {
+      this.yearFocus = this.yearSelect.value;
+      if (!this.yearFocus) this.fitAll();
+      else this.focusYear(Number(this.yearFocus));
+    });
+    yearFocus.appendChild(this.yearSelect);
+
+    stage.append(
+      this.yearLayer,
+      world,
+      this.yearLabelLayer,
+      this.emptyHint,
+      this.marqueeEl,
+      this.legendEl,
+      this.edgeToolbar,
+      yearFocus,
+      toolbar,
+    );
     stage.addEventListener('pointerdown', (evt) => this.onStagePointerDown(evt));
     stage.addEventListener('wheel', (evt) => this.onWheel(evt), { passive: false });
     stage.addEventListener('contextmenu', (evt) => this.onContextMenu(evt));
@@ -335,6 +376,7 @@ export class AtlasView extends ItemView {
     await this.index.refresh();
     await this.reloadPalette();
     await this.loadBoard();
+    this.seedYearLines();
     this.fillFieldFilter();
     this.renderAll();
     this.history = [this.snapshot()];
@@ -400,6 +442,7 @@ export class AtlasView extends ItemView {
 
   private renderAll(): void {
     this.applyTransform();
+    this.renderYearLines();
     this.renderGroups();
     this.renderNodes();
     this.renderEdges();
@@ -418,6 +461,7 @@ export class AtlasView extends ItemView {
     this.stage.style.setProperty('--pa-grid', `${24 * z}px`);
     this.stage.style.backgroundPosition = `${x}px ${y}px`;
     this.root.style.setProperty('--pa-inv-zoom', String(Math.min(8, Math.max(0.35, 1 / z))));
+    this.layoutYearLines();
     this.updateEdgeToolbar();
     this.zoomLabel.setText(`${Math.round(z * 100)}%`);
   }
@@ -477,27 +521,244 @@ export class AtlasView extends ItemView {
     this.groupLayer.empty();
     if (!this.board.nodes.length) return;
 
-    const groups = new Map<string, AtlasNode[]>();
+    const lines = [...this.board.years].sort((a, b) => a.y - b.y);
+    const bandOf = (node: AtlasNode): number => {
+      const center = node.y + node.h / 2;
+      let band = -1;
+      for (let index = 0; index < lines.length; index += 1) {
+        if (center >= (lines[index] as YearLine).y) band = index;
+      }
+      return band;
+    };
+
+    const groups = new Map<string, { field: string; band: number; nodes: AtlasNode[] }>();
     for (const node of this.board.nodes) {
       const field = this.fieldOf(node);
-      const list = groups.get(field) || [];
-      list.push(node);
-      groups.set(field, list);
+      const band = bandOf(node);
+      const key = `${field}\u0000${band}`;
+      const entry = groups.get(key) || { field, band, nodes: [] };
+      entry.nodes.push(node);
+      groups.set(key, entry);
     }
 
-    for (const [field, nodes] of groups) {
+    for (const { field, band, nodes } of groups.values()) {
       const bounds = nodesBounds(nodes);
       if (!bounds) continue;
+      let top = bounds.minY - 24;
+      let bottom = bounds.maxY + 24;
+      const line = band >= 0 ? (lines[band] as YearLine) : undefined;
+      const next = band >= 0 ? (lines[band + 1] as YearLine | undefined) : undefined;
+      if (line) top = Math.max(top, line.y + 6);
+      if (next) bottom = Math.min(bottom, next.y - 6);
+      if (bottom - top < 24) continue;
       const color = paletteFor(this.palette, field);
       const frame = el('div', 'pa-group');
       frame.style.left = `${bounds.minX - 24}px`;
-      frame.style.top = `${bounds.minY - 24}px`;
+      frame.style.top = `${top}px`;
       frame.style.width = `${bounds.maxX - bounds.minX + 48}px`;
-      frame.style.height = `${bounds.maxY - bounds.minY + 48}px`;
+      frame.style.height = `${bottom - top}px`;
       frame.style.borderColor = withAlpha(color.border, '66');
       frame.style.background = withAlpha(color.bg, '18');
       this.groupLayer.appendChild(frame);
     }
+  }
+
+  // ── 年份横线 ────────────────────────────────────────────
+
+  private seedYearLines(force = false): void {
+    if (!force && this.board.years.length) return;
+    const endYear = new Date().getFullYear();
+    const startYear = Math.min(this.plugin.settings.yearStart || 2015, endYear);
+    const list: number[] = [];
+    for (let year = endYear; year >= startYear; year -= 1) list.push(year);
+    if (!list.length) return;
+    // 空画布从 120 开始，给顶部工具栏留出余量；已有卡片则从内容上方起
+    const startY = this.board.nodes.length
+      ? Math.min(...this.board.nodes.map((node) => node.y)) - 160
+      : 120;
+    this.board.years = list.map((year, index) => ({
+      id: uid('y'),
+      year,
+      y: startY + index * YEAR_BAND_HEIGHT,
+    }));
+  }
+
+  private renderYearLines(): void {
+    if (!this.yearLayer) return;
+    this.yearLayer.empty();
+    this.yearLabelLayer.empty();
+    this.yearEls.clear();
+    const sorted = [...this.board.years].sort((a, b) => a.y - b.y);
+    for (const line of sorted) {
+      const strip = el('div', 'pa-year-line');
+      strip.dataset.year = String(line.year);
+      strip.title = '拖动这条线调整年份空间';
+      strip.addEventListener('pointerdown', (evt) => this.beginYearDrag(line, evt));
+      strip.addEventListener('contextmenu', (evt) => this.showYearMenu(line, evt));
+      this.yearLayer.appendChild(strip);
+
+      const label = el('div', 'pa-year-band-label');
+      label.dataset.year = String(line.year);
+      label.appendChild(el('span', 'pa-year-band-year', String(line.year)));
+      const count = this.countYear(line.year);
+      if (count) label.appendChild(el('span', 'pa-year-band-count', `${count} 篇`));
+      label.addEventListener('click', (evt) => {
+        evt.stopPropagation();
+        this.focusYear(line.year);
+      });
+      this.yearLabelLayer.appendChild(label);
+
+      this.yearEls.set(line.id, { line: strip, label });
+    }
+    this.layoutYearLines();
+    this.renderYearOptions();
+  }
+
+  private layoutYearLines(): void {
+    if (!this.yearLayer) return;
+    const z = this.viewport.z;
+    const sorted = [...this.board.years].sort((a, b) => a.y - b.y);
+    for (let i = 0; i < sorted.length; i += 1) {
+      const line = sorted[i] as YearLine;
+      const entry = this.yearEls.get(line.id);
+      if (!entry) continue;
+      const screenY = this.viewport.y + line.y * z;
+      entry.line.style.top = `${screenY - 7}px`;
+      const next = sorted[i + 1];
+      const bandBottom = next ? next.y : line.y + YEAR_BAND_HEIGHT;
+      entry.label.style.top = `${screenY + 10}px`;
+      entry.label.style.left = '14px';
+      entry.label.style.display = (bandBottom - line.y) * z >= 30 ? '' : 'none';
+    }
+  }
+
+  private countYear(year: number): number {
+    let count = 0;
+    for (const node of this.board.nodes) {
+      const paper = this.index.get(node.paper);
+      if (!paper) continue;
+      const card = resolveCard(node, paper, this.palette);
+      if (yearOfDate(card.date) === year) count += 1;
+    }
+    return count;
+  }
+
+  private renderYearOptions(): void {
+    if (!this.yearSelect) return;
+    const years = [...this.board.years].map((line) => line.year).sort((a, b) => b - a);
+    const current = this.yearSelect.value;
+    this.yearSelect.empty();
+    const all = el('option', '', '全部年份');
+    all.value = '';
+    this.yearSelect.appendChild(all);
+    for (const year of years) {
+      const option = el('option', '', String(year));
+      option.value = String(year);
+      this.yearSelect.appendChild(option);
+    }
+    const nextValue = years.map(String).includes(current) ? current : '';
+    this.yearSelect.value = nextValue;
+    this.yearFocus = nextValue;
+  }
+
+  private beginYearDrag(line: YearLine, evt: PointerEvent): void {
+    if (evt.button !== 0) return;
+    evt.preventDefault();
+    evt.stopPropagation();
+    const rect = this.stage.getBoundingClientRect();
+    const boardYAt = (clientY: number): number =>
+      (clientY - rect.top - this.viewport.y) / this.viewport.z;
+    const offset = line.y - boardYAt(evt.clientY);
+    const before = this.snapshot();
+    const entry = this.yearEls.get(line.id);
+    entry?.line.classList.add('is-dragging');
+    entry?.label.classList.add('is-dragging');
+
+    const move = (moveEvt: PointerEvent): void => {
+      line.y = boardYAt(moveEvt.clientY) + offset;
+      this.layoutYearLines();
+    };
+    const up = (): void => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      entry?.line.classList.remove('is-dragging');
+      entry?.label.classList.remove('is-dragging');
+      this.recordHistory(before);
+      this.saveDebounced();
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
+  private focusYear(year: number): void {
+    const sorted = [...this.board.years].sort((a, b) => a.y - b.y);
+    const index = sorted.findIndex((line) => line.year === year);
+    if (index < 0) {
+      this.fitAll();
+      return;
+    }
+    const top = (sorted[index] as YearLine).y;
+    const bottom = index + 1 < sorted.length ? (sorted[index + 1] as YearLine).y : top + YEAR_BAND_HEIGHT;
+    const bandHeight = Math.max(120, bottom - top);
+    const nodesInBand = this.board.nodes.filter((node) => {
+      const center = node.y + node.h / 2;
+      return center >= top && center < bottom;
+    });
+    const bounds = nodesBounds(nodesInBand.length ? nodesInBand : this.board.nodes);
+    const rect = this.stage.getBoundingClientRect();
+    if (rect.width < 10 || rect.height < 10) return;
+    const pad = 80;
+    const contentWidth = bounds ? bounds.maxX - bounds.minX + pad * 2 : rect.width;
+    const z = clamp(
+      Math.min(rect.height / (bandHeight + pad * 2), rect.width / contentWidth),
+      MIN_ZOOM,
+      1.2,
+    );
+    const centerX = bounds ? (bounds.minX + bounds.maxX) / 2 : 0;
+    this.viewport.z = z;
+    this.viewport.x = rect.width / 2 - centerX * z;
+    this.viewport.y = rect.height / 2 - ((top + bottom) / 2) * z;
+    this.applyTransform();
+    this.saveDebounced();
+    if (this.yearSelect) {
+      this.yearSelect.value = String(year);
+      this.yearFocus = String(year);
+    }
+  }
+
+  private showYearMenu(line: YearLine, evt: MouseEvent): void {
+    evt.preventDefault();
+    evt.stopPropagation();
+    const menu = new Menu();
+    menu.addItem((item) =>
+      item.setTitle('聚焦这一年').setIcon('calendar').onClick(() => this.focusYear(line.year)),
+    );
+    menu.addItem((item) =>
+      item
+        .setTitle('删除这条年份线')
+        .setIcon('trash')
+        .onClick(() => {
+          const before = this.snapshot();
+          this.board.years = this.board.years.filter((entry) => entry.id !== line.id);
+          this.recordHistory(before);
+          this.renderYearLines();
+          this.saveDebounced();
+        }),
+    );
+    menu.addSeparator();
+    menu.addItem((item) =>
+      item.setTitle('重建全部年份线').setIcon('rotate-ccw').onClick(() => this.rebuildYearLines()),
+    );
+    menu.showAtMouseEvent(evt);
+  }
+
+  rebuildYearLines(): void {
+    const before = this.snapshot();
+    this.board.years = [];
+    this.seedYearLines(true);
+    this.recordHistory(before);
+    this.renderYearLines();
+    this.saveDebounced();
   }
 
   private renderEdges(): void {
@@ -742,6 +1003,7 @@ export class AtlasView extends ItemView {
     this.dragMoved = false;
     const target = evt.target as HTMLElement;
     if (target.closest('.pa-toolbar, .pa-edge-toolbar')) return;
+    if (target.closest('.pa-year-line, .pa-year-band-label')) return;
     if (target.closest('input, textarea, [contenteditable="true"]')) return;
     const port = target.closest('[data-pa-port]') as HTMLElement | null;
     if (port) {
@@ -1240,6 +1502,7 @@ export class AtlasView extends ItemView {
     this.recordHistory(before);
     this.refreshNode(nodeId);
     this.renderSidebarList();
+    if (field === 'date') this.renderYearLines();
     this.saveDebounced();
   }
 
@@ -1546,7 +1809,11 @@ export class AtlasView extends ItemView {
   // ── history ──────────────────────────────────────────────
 
   private snapshot(): string {
-    return JSON.stringify({ nodes: this.board.nodes, edges: this.board.edges });
+    return JSON.stringify({
+      nodes: this.board.nodes,
+      edges: this.board.edges,
+      years: this.board.years,
+    });
   }
 
   private recordHistory(before: string): void {
@@ -1560,9 +1827,14 @@ export class AtlasView extends ItemView {
 
   private restore(snapshot: string): void {
     try {
-      const data = JSON.parse(snapshot) as { nodes: AtlasNode[]; edges: AtlasEdge[] };
+      const data = JSON.parse(snapshot) as {
+        nodes: AtlasNode[];
+        edges: AtlasEdge[];
+        years?: YearLine[];
+      };
       this.board.nodes = data.nodes;
       this.board.edges = data.edges;
+      this.board.years = data.years ?? [];
       this.selection.clear();
       this.edgeSelection = null;
       this.renderAll();
@@ -1626,6 +1898,7 @@ export class AtlasView extends ItemView {
     this.renderSidebarList();
     this.updateEmptyHint();
     this.updateLegend();
+    this.renderYearLines();
     this.saveDebounced();
   }
 
@@ -1684,11 +1957,12 @@ export class AtlasView extends ItemView {
   }
 
   clearBoard(): void {
-    if (!this.board.nodes.length) return;
-    if (!window.confirm('清空画布？可以用 Ctrl+Z 撤销。')) return;
+    if (!this.board.nodes.length && !this.board.years.length) return;
+    if (!window.confirm('清空画布（包括年份横线）？可以用 Ctrl+Z 撤销。')) return;
     const before = this.snapshot();
     this.board.nodes = [];
     this.board.edges = [];
+    this.board.years = [];
     this.selection.clear();
     this.edgeSelection = null;
     this.recordHistory(before);

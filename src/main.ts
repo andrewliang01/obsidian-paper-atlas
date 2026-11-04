@@ -50,6 +50,17 @@ export default class PaperAtlasPlugin extends Plugin {
     });
 
     this.addCommand({
+      id: 'atlas-year-lines',
+      name: '画布：重建年份横线',
+      checkCallback: (checking) => {
+        const view = this.getAtlasView();
+        if (!view) return false;
+        if (!checking) view.rebuildYearLines();
+        return true;
+      },
+    });
+
+    this.addCommand({
       id: 'atlas-fit',
       name: '画布：适应视图',
       checkCallback: (checking) => {
@@ -181,6 +192,27 @@ class AtlasSettingTab extends PluginSettingTab {
         toggle.setValue(this.plugin.settings.sidebarOpen).onChange(async (value) => {
           this.plugin.settings.sidebarOpen = value;
           await this.plugin.saveSettings();
+        }),
+      );
+
+    new Setting(containerEl)
+      .setName('年份横线起始年')
+      .setDesc('画布年份分层从这一年一直到今年（默认 2015–今年）。改完点下方「重建年份横线」生效。')
+      .addText((text) =>
+        text
+          .setValue(String(this.plugin.settings.yearStart))
+          .setPlaceholder('2015')
+          .onChange(async (value) => {
+            const year = Number.parseInt(value, 10);
+            if (!Number.isNaN(year)) {
+              this.plugin.settings.yearStart = year;
+              await this.plugin.saveSettings();
+            }
+          }),
+      )
+      .addButton((button) =>
+        button.setButtonText('重建年份横线').onClick(() => {
+          this.plugin.getAtlasView()?.rebuildYearLines();
         }),
       );
 

@@ -70,6 +70,13 @@ export interface AtlasNode {
   expanded?: boolean;
 }
 
+export interface YearLine {
+  id: string;
+  year: number;
+  /** board-space y of the divider (top edge of that year's band) */
+  y: number;
+}
+
 export type EdgeSide = 'top' | 'right' | 'bottom' | 'left';
 export type EdgeArrow = 'forward' | 'both' | 'none';
 
@@ -95,6 +102,7 @@ export interface AtlasBoard {
   viewport: AtlasViewport;
   nodes: AtlasNode[];
   edges: AtlasEdge[];
+  years: YearLine[];
 }
 
 export interface FieldPaletteEntry {

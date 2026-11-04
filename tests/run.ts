@@ -171,11 +171,17 @@ board.edges = [
   { id: 'e1', from: 'a', to: 'b', label: '改进' },
   { id: 'e2', from: 'b', to: 'ghost' },
 ];
+board.years = [
+  { id: 'y1', year: 2025, y: 100 },
+  { id: 'y2', year: 2024, y: 820 },
+];
 const raw = serializeBoard(board);
 const parsed = parseBoard(raw);
 check('节点数量保持', parsed?.nodes.length === 3);
 check('覆盖值保持', parsed?.nodes[1]?.overrides?.title === '自定义');
 check('悬空连线被丢弃', parsed?.edges.length === 1);
+check('年份横线保持', parsed?.years.length === 2 && parsed?.years[0]?.year === 2025,
+  JSON.stringify(parsed?.years));
 check('连线标签保持', parsed?.edges[0]?.label === '改进');
 check('坏 JSON 不会被当成空画布', parseBoard('{oops') === null);
 check('视口被夹紧', (parseBoard('{"viewport":{"z":999}}')?.viewport.z ?? 99) <= 4);

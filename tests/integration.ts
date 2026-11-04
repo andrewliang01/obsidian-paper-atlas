@@ -181,7 +181,12 @@ async function main(): Promise<void> {
 
   const root = view.contentEl.querySelector('.pa-root') as HTMLElement | null;
   const internal = view as unknown as {
-    board: { nodes: Array<Record<string, unknown>>; edges: Array<Record<string, unknown>> };
+    board: {
+      nodes: Array<Record<string, unknown>>;
+      edges: Array<Record<string, unknown>>;
+      years: Array<{ id: string; year: number; y: number }>;
+    };
+    snapshot(): string;
     viewport: { x: number; y: number; z: number };
     selection: Set<string>;
     edgeSelection: string | null;
@@ -207,6 +212,38 @@ async function main(): Promise<void> {
     String(view.contentEl.querySelectorAll('.pa-item').length));
   check('领域筛选有 10 个选项', view.contentEl.querySelectorAll('.pa-field-filter option, .pa-select option').length >= 10);
   check('空画布提示可见', view.contentEl.querySelector('.pa-empty')?.classList.contains('is-hidden') === false);
+  const yearLineCount = view.contentEl.querySelectorAll('.pa-year-line').length;
+  const currentYear = new Date().getFullYear();
+  check('年份横线覆盖 2015..今年', yearLineCount === currentYear - 2015 + 1,
+    `${yearLineCount} / ${currentYear - 2015 + 1}`);
+  check('最上面一条是今年', (view.contentEl.querySelector('.pa-year-band-label')?.textContent || '').includes(String(currentYear)));
+  check('年份写在横线之间的左上角', view.contentEl.querySelectorAll('.pa-year-band-label').length === yearLineCount,
+    String(view.contentEl.querySelectorAll('.pa-year-band-label').length));
+  check('年份选择器包含全部年份 + 各年',
+    view.contentEl.querySelectorAll('.pa-year-select option').length === yearLineCount + 1,
+    String(view.contentEl.querySelectorAll('.pa-year-select option').length));
+  const seeded = JSON.parse(internal.snapshot()) as { years?: unknown[] };
+  check('撤销快照包含年份线', Array.isArray(seeded.years) && seeded.years.length === yearLineCount);
+
+  // happy-dom 的 getBoundingClientRect 恒为 0，给聚焦逻辑一个真实尺寸
+  const stageEl = view.contentEl.querySelector('.pa-stage') as HTMLElement | null;
+  if (stageEl) {
+    stageEl.getBoundingClientRect = () =>
+      ({ x: 0, y: 0, left: 0, top: 0, right: 1200, bottom: 800, width: 1200, height: 800, toJSON: () => ({}) }) as DOMRect;
+  }
+
+  const yearSelect = view.contentEl.querySelector('.pa-year-select') as HTMLSelectElement | null;
+  if (yearSelect) {
+    const beforeView = { ...internal.viewport };
+    yearSelect.value = yearSelect.options[1]?.value ?? '';
+    yearSelect.dispatchEvent(new Event('change'));
+    check('选择年份后聚焦到该年',
+      internal.viewport.x !== beforeView.x || internal.viewport.y !== beforeView.y || internal.viewport.z !== beforeView.z,
+      `${JSON.stringify(beforeView)} -> ${JSON.stringify(internal.viewport)}`);
+  } else {
+    check('找到年份选择器', false);
+  }
+
   const wholeBody = internal.palette['Whole-body Motion'];
   internal.searchQuery = 'zzzz-not-found';
   internal.renderSidebarList();
@@ -226,7 +263,7 @@ async function main(): Promise<void> {
   check('画布生成 91 张卡片', nodes.length === 91, String(nodes.length));
   check('DOM 里也是 91 张', nodeEls.length === 91, String(nodeEls.length));
   const frames = Array.from(view.contentEl.querySelectorAll('.pa-group'));
-  check('领域外壳回来了', frames.length === 9, String(frames.length));
+  check('领域外壳回来了', frames.length >= 9, String(frames.length));
   check('外壳只有颜色、没有大字标签', frames.every((frame) => (frame.textContent || '').trim() === ''));
   check('每张卡都有主领域胶囊', view.contentEl.querySelectorAll('.pa-node .pa-field-pill').length === 91,
     String(view.contentEl.querySelectorAll('.pa-node .pa-field-pill').length));

@@ -8,6 +8,8 @@ export interface AtlasSettings {
   cardWidth: number;
   cardHeight: number;
   sidebarOpen: boolean;
+  /** first year of the horizontal year bands */
+  yearStart: number;
   /** reuse the field colours of obsidian-mypaper-plugin */
   inheritPalette: boolean;
   /** bottom-left field colour legend */
@@ -20,6 +22,7 @@ export const DEFAULT_SETTINGS: AtlasSettings = {
   cardWidth: CARD_WIDTH,
   cardHeight: CARD_HEIGHT,
   sidebarOpen: true,
+  yearStart: 2015,
   inheritPalette: true,
   showLegend: true,
 };
@@ -32,6 +35,11 @@ export function normalizeSettings(raw: Partial<AtlasSettings> | undefined): Atla
     cardWidth: clamp(Number(merged.cardWidth) || CARD_WIDTH, 260, 560),
     cardHeight: clamp(Number(merged.cardHeight) || CARD_HEIGHT, 300, 700),
     sidebarOpen: merged.sidebarOpen !== false,
+    yearStart: clamp(
+      Number(merged.yearStart) || DEFAULT_SETTINGS.yearStart,
+      1990,
+      new Date().getFullYear(),
+    ),
     inheritPalette: merged.inheritPalette !== false,
     showLegend: merged.showLegend !== false,
   };

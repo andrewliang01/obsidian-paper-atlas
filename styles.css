@@ -104,6 +104,102 @@
   pointer-events: none;
 }
 
+/* ── 年份横线 ─────────────────────────────────────────── */
+
+.pa-year-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.pa-year-label-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.pa-year-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 14px;
+  pointer-events: auto;
+  cursor: ns-resize;
+}
+
+.pa-year-line::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 6px;
+  border-top: 1px dashed var(--background-modifier-border);
+}
+
+.pa-year-line:hover::after,
+.pa-year-line.is-dragging::after {
+  border-top-style: solid;
+  border-top-color: var(--interactive-accent);
+}
+
+.pa-year-band-label {
+  position: absolute;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  pointer-events: auto;
+  cursor: pointer;
+  color: var(--text-faint);
+  font-size: 20px;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 8px var(--background-primary), 0 0 3px var(--background-primary);
+  user-select: none;
+}
+
+.pa-year-band-label:hover {
+  color: var(--text-normal);
+}
+
+.pa-year-band-label.is-dragging {
+  color: var(--interactive-accent);
+}
+
+.pa-year-band-count {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-faint);
+}
+
+.pa-year-focus {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
+  background: var(--background-primary);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 8%);
+}
+
+.pa-year-caption {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.pa-year-focus .pa-select {
+  flex: 0 0 auto;
+  width: 112px;
+  height: 26px;
+}
+
 /* ── 卡片 ─────────────────────────────────────────────── */
 
 .pa-node {

@@ -6,12 +6,13 @@ import type {
   CardOverrides,
   EdgeArrow,
   EdgeSide,
+  YearLine,
 } from '../types';
 
 const BOARD_VERSION = 1;
 
 export function emptyBoard(): AtlasBoard {
-  return { version: BOARD_VERSION, viewport: { x: 0, y: 0, z: 1 }, nodes: [], edges: [] };
+  return { version: BOARD_VERSION, viewport: { x: 0, y: 0, z: 1 }, nodes: [], edges: [], years: [] };
 }
 
 export function uid(prefix: string): string {
@@ -99,12 +100,27 @@ export function parseBoard(raw: string): AtlasBoard | null {
   const nodes = rawNodes.map(parseNode).filter((node): node is AtlasNode => node !== null);
   const nodeIds = new Set(nodes.map((node) => node.id));
 
+  const rawYears = Array.isArray(source.years) ? source.years : [];
+  const years: YearLine[] = rawYears
+    .map((raw) => {
+      if (!raw || typeof raw !== 'object') return null;
+      const item = raw as Record<string, unknown>;
+      if (typeof item.year !== 'number' || !Number.isFinite(item.year)) return null;
+      if (typeof item.y !== 'number' || !Number.isFinite(item.y)) return null;
+      return {
+        id: typeof item.id === 'string' ? item.id : `y_${item.year}`,
+        year: Math.round(item.year),
+        y: item.y,
+      };
+    })
+    .filter((line): line is YearLine => line !== null);
+
   const rawEdges = Array.isArray(source.edges) ? source.edges : [];
   const edges = rawEdges
     .map((edge) => parseEdge(edge, nodeIds))
     .filter((edge): edge is AtlasEdge => edge !== null);
 
-  return { version: BOARD_VERSION, viewport: parseViewport(source.viewport), nodes, edges };
+  return { version: BOARD_VERSION, viewport: parseViewport(source.viewport), nodes, edges, years };
 }
 
 export function serializeBoard(board: AtlasBoard): string {
@@ -130,6 +146,7 @@ export function serializeBoard(board: AtlasBoard): string {
         return out;
       }),
       edges: board.edges,
+      years: board.years,
     },
     null,
     1,
