@@ -628,7 +628,7 @@ export class AtlasView extends ItemView {
       const bandBottom = next ? next.y : line.y + YEAR_BAND_HEIGHT;
       entry.label.style.top = `${screenY + 10}px`;
       entry.label.style.left = '14px';
-      entry.label.style.display = (bandBottom - line.y) * z >= 30 ? '' : 'none';
+      entry.label.style.display = (bandBottom - line.y) * z >= 38 ? '' : 'none';
     }
   }
 
