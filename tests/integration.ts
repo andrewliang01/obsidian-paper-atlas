@@ -385,6 +385,43 @@ async function main(): Promise<void> {
     check('找到带多张图的论文', false);
   }
 
+  console.log('\n[4c] 先选别的再选回当前');
+  const swapNode = (internal.board.nodes as Array<Record<string, unknown>>).find((node) => {
+    const paper = internal.index.get(node.paper as string);
+    return paper && paper.images.filter((image) => image.path).length >= 2;
+  });
+  if (swapNode) {
+    const paper = internal.index.get(swapNode.paper as string)!;
+    const usable = paper.images.filter((image) => image.path);
+    const { CoverPickerModal } = await import('../src/view/modals');
+    let lastModal: { contentEl: HTMLElement } | null = null;
+    const originalOpen = CoverPickerModal.prototype.open;
+    CoverPickerModal.prototype.open = function openThis(): void {
+      lastModal = this as unknown as { contentEl: HTMLElement };
+      (this as unknown as { onOpen(): void }).onOpen();
+    };
+    try {
+      (view as unknown as { openCoverPicker(id: string): void }).openCoverPicker(swapNode.id as string);
+      const cells = lastModal!.contentEl.querySelectorAll('.pa-cover-cell');
+      (cells[1] as HTMLElement).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      check('选别的封面写入 override', (swapNode.overrides as Record<string, unknown>).cover === usable[1]?.path,
+        String((swapNode.overrides as Record<string, unknown>).cover));
+
+      (view as unknown as { openCoverPicker(id: string): void }).openCoverPicker(swapNode.id as string);
+      const cellsBack = lastModal!.contentEl.querySelectorAll('.pa-cover-cell');
+      (cellsBack[0] as HTMLElement).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      check('再选回当前封面会覆盖上一个', (swapNode.overrides as Record<string, unknown>).cover === usable[0]?.path,
+        String((swapNode.overrides as Record<string, unknown>).cover));
+      const imgNow = view.contentEl.querySelector(`.pa-node[data-id="${swapNode.id as string}"] .pa-cover-img`) as HTMLImageElement | null;
+      check('卡片封面图片地址跟着切换', Boolean(imgNow) && decodeURI(imgNow!.src).includes(usable[0]!.path),
+        imgNow ? decodeURI(imgNow.src) : 'no img');
+    } finally {
+      CoverPickerModal.prototype.open = originalOpen;
+    }
+  } else {
+    check('找到多图论文', false);
+  }
+
   console.log('\n[5] 删除与撤销');
   internal.edgeSelection = null;
   internal.refreshSelection();

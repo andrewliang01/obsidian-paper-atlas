@@ -1685,7 +1685,8 @@ export class AtlasView extends ItemView {
       else delete node.overrides.cover;
       if (!Object.keys(node.overrides).length) delete node.overrides;
       this.recordHistory(before);
-      this.refreshNode(nodeId);
+      // 封面涉及图片缓存、比例和高度，整卡重建最稳
+      this.renderAll();
       this.saveDebounced();
     }).open();
   }
