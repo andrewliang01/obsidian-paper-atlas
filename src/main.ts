@@ -94,6 +94,18 @@ export default class PaperAtlasPlugin extends Plugin {
   }
 
   async openAtlas(): Promise<void> {
+    const existing = this.app.workspace
+      .getLeavesOfType(ATLAS_VIEW_TYPE)
+      .find((leaf) => leaf.view instanceof AtlasView);
+    if (existing) {
+      await this.app.workspace.revealLeaf(existing);
+      await existing.setViewState({
+        type: ATLAS_VIEW_TYPE,
+        active: true,
+        state: { file: this.settings.boardPath },
+      });
+      return;
+    }
     const leaf = this.app.workspace.getLeaf('tab');
     await leaf.setViewState({
       type: ATLAS_VIEW_TYPE,
