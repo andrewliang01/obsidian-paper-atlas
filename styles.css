@@ -19,6 +19,10 @@
 
 /* ── 画布 ─────────────────────────────────────────────── */
 
+.pa-stage.is-panning {
+  cursor: grabbing;
+}
+
 .pa-stage {
   position: relative;
   flex: 1 1 auto;

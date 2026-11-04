@@ -288,6 +288,9 @@ export class AtlasView extends ItemView {
     );
     stage.addEventListener('pointerdown', (evt) => this.onStagePointerDown(evt));
     stage.addEventListener('wheel', (evt) => this.onWheel(evt), { passive: false });
+    stage.addEventListener('mousedown', (evt) => {
+      if (evt.button === 1) evt.preventDefault();
+    });
     stage.addEventListener('contextmenu', (evt) => this.onContextMenu(evt));
     stage.addEventListener('pointerdown', (evt) => {
       if ((evt.target as HTMLElement).closest('.pa-editor')) return;
@@ -1170,12 +1173,6 @@ export class AtlasView extends ItemView {
       return;
     }
 
-    if (evt.button === 1 || this.spaceDown || evt.altKey) {
-      evt.preventDefault();
-      this.beginPan(evt);
-      return;
-    }
-
     this.beginMarquee(evt);
   }
 
@@ -1189,6 +1186,7 @@ export class AtlasView extends ItemView {
       moved: false,
     };
     this.drag = drag;
+    this.stage.classList.add('is-panning');
     this.attachDragListeners();
   }
 
@@ -1351,6 +1349,7 @@ export class AtlasView extends ItemView {
     if (!drag) return;
 
     if (drag.kind === 'pan') {
+      this.stage.classList.remove('is-panning');
       this.saveDebounced();
       return;
     }
