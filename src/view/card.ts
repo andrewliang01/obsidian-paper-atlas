@@ -159,7 +159,7 @@ export function buildCardElement(
 
   const cover = el('div', 'pa-cover');
   cover.dataset.paAction = 'view-cover';
-  cover.title = '点击查看原图';
+  cover.title = '点击查看原图；右键卡片可更换封面';
   const knownAspect = node.coverAspect ?? 9 / 16;
   cover.style.aspectRatio = `1 / ${knownAspect}`;
   if (model.cover) {
@@ -175,10 +175,6 @@ export function buildCardElement(
     });
     img.src = resolveCoverUrl(model.cover);
     cover.appendChild(img);
-    const swap = el('button', 'pa-cover-swap', '更换封面');
-    swap.type = 'button';
-    swap.dataset.paAction = 'cover';
-    cover.appendChild(swap);
   } else {
     cover.appendChild(coverPlaceholder());
   }
@@ -213,6 +209,13 @@ export function buildCardElement(
   const openNote = el('span', 'pa-foot-link', '打开笔记');
   openNote.dataset.paAction = 'open-note';
   foot.appendChild(openNote);
+
+  if (model.cover) {
+    foot.appendChild(el('span', 'pa-foot-sep', '·'));
+    const changeCover = el('span', 'pa-foot-link', '更换封面');
+    changeCover.dataset.paAction = 'cover';
+    foot.appendChild(changeCover);
+  }
 
   if (model.missing) {
     foot.appendChild(el('span', 'pa-foot-warn', '笔记已删除'));

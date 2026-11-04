@@ -576,6 +576,10 @@
   color: var(--text-faint);
 }
 
+.pa-foot-sep {
+  color: var(--text-faint);
+}
+
 .pa-foot-link {
   color: var(--interactive-accent);
   cursor: pointer;

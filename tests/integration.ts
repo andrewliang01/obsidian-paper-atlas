@@ -334,6 +334,35 @@ async function main(): Promise<void> {
   const restored = view.contentEl.querySelector(`.pa-node[data-id="${first.id}"] .pa-title`)?.textContent || '';
   check('恢复为笔记标题', restored.length > 0 && restored !== '我的自定义标题', restored);
 
+  console.log('\n[4a] 点击封面');
+  const coverNode = Array.from(view.contentEl.querySelectorAll('.pa-node')).find(
+    (el) => el.querySelector('.pa-cover-img'),
+  ) as HTMLElement | undefined;
+  if (coverNode) {
+    const { CoverPickerModal, ImagePreviewModal } = await import('../src/view/modals');
+    let pickerOpened = false;
+    let previewOpened = false;
+    const originalPicker = CoverPickerModal.prototype.open;
+    const originalPreview = ImagePreviewModal.prototype.open;
+    CoverPickerModal.prototype.open = function openPicker(): void {
+      pickerOpened = true;
+    };
+    ImagePreviewModal.prototype.open = function openPreview(): void {
+      previewOpened = true;
+    };
+    try {
+      const img = coverNode.querySelector('.pa-cover-img') as HTMLElement;
+      img.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    } finally {
+      CoverPickerModal.prototype.open = originalPicker;
+      ImagePreviewModal.prototype.open = originalPreview;
+    }
+    check('点击封面图片打开预览而不是换图', previewOpened && !pickerOpened,
+      `preview=${previewOpened} picker=${pickerOpened}`);
+  } else {
+    check('找到带封面的卡片', false);
+  }
+
   console.log('\n[4b] 封面选择器');
   const coverPaper = (internal.index.all as Array<{ images: Array<{ path: string; link: string }> }>).find(
     (paper) => paper.images.filter((image) => image.path).length >= 3,
