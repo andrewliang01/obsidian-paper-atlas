@@ -740,6 +740,7 @@ export class AtlasView extends ItemView {
     const move = (moveEvt: PointerEvent): void => {
       line.y = boardYAt(moveEvt.clientY) + offset;
       this.layoutYearLines();
+      this.renderGroups();
     };
     const up = (): void => {
       window.removeEventListener('pointermove', move);
@@ -903,6 +904,7 @@ export class AtlasView extends ItemView {
     body.classList.remove('is-clipped');
     this.updateNodeDom(node);
     this.updateEdges();
+    this.renderGroups();
     this.saveDebounced();
   }
 
@@ -943,6 +945,7 @@ export class AtlasView extends ItemView {
       }
     }
     this.updateEdges();
+    this.renderGroups();
     this.saveDebounced();
     this.fitUnderstandingHeight(nodeId);
   }
@@ -1543,6 +1546,7 @@ export class AtlasView extends ItemView {
     this.recordHistory(before);
     this.refreshNode(nodeId);
     this.updateEdges();
+    this.renderGroups();
     this.saveDebounced();
   }
 
