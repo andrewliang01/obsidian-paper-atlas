@@ -216,7 +216,9 @@ async function main(): Promise<void> {
   const currentYear = new Date().getFullYear();
   check('年份横线覆盖 2015..今年', yearLineCount === currentYear - 2015 + 1,
     `${yearLineCount} / ${currentYear - 2015 + 1}`);
-  check('最上面一条是今年', (view.contentEl.querySelector('.pa-year-band-label')?.textContent || '').includes(String(currentYear)));
+  const yearLabels = Array.from(view.contentEl.querySelectorAll('.pa-year-band-label')).map((item) => item.textContent || '');
+  check('年份从上到下递增', (yearLabels[0] || '').includes('2015') && (yearLabels[yearLabels.length - 1] || '').includes(String(currentYear)),
+    `${yearLabels[0]} .. ${yearLabels[yearLabels.length - 1]}`);
   check('年份写在横线之间的左上角', view.contentEl.querySelectorAll('.pa-year-band-label').length === yearLineCount,
     String(view.contentEl.querySelectorAll('.pa-year-band-label').length));
   check('年份选择器包含全部年份 + 各年',
@@ -270,8 +272,10 @@ async function main(): Promise<void> {
   check('主领域胶囊有文字', (view.contentEl.querySelector('.pa-node .pa-field-pill')?.textContent || '').length > 0);
   check('空状态已隐藏', view.contentEl.querySelector('.pa-empty')?.classList.contains('is-hidden') === true);
   check('每张卡都有标题', view.contentEl.querySelectorAll('.pa-node .pa-title').length === 91);
-  check('机构统一显示未标注', view.contentEl.querySelectorAll('.pa-node .pa-inst.is-empty').length === 91,
-    String(view.contentEl.querySelectorAll('.pa-node .pa-inst.is-empty').length));
+  const emptyInst = view.contentEl.querySelectorAll('.pa-node .pa-inst.is-empty').length;
+  const filledInst = view.contentEl.querySelectorAll('.pa-node .pa-inst:not(.is-empty)').length;
+  check('机构回填后大多数卡片有单位', filledInst >= 80 && filledInst + emptyInst === 91,
+    `${filledInst} filled / ${emptyInst} empty`);
   const covers = view.contentEl.querySelectorAll('.pa-node .pa-cover-img').length;
   check('封面图渲染（约 37 张）', covers >= 30 && covers <= 45, String(covers));
   check('所有卡片坐标有效', nodes.every((node) => Number.isFinite(node.x) && Number.isFinite(node.y)));

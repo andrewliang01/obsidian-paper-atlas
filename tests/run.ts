@@ -133,7 +133,7 @@ console.log(`  题目 ${withTitle} / 日期 ${withDate} / 作者 ${withAuthors} 
 check('全部有题目', withTitle === papers.length);
 check('全部有日期', withDate === papers.length);
 check('全部有作者', withAuthors === papers.length);
-check('机构字段目前为空（符合预期）', withInstitution === 0, `实际 ${withInstitution}`);
+check('机构字段已回填大部分论文', withInstitution >= 80, `实际 ${withInstitution}`);
 check('图片覆盖率约 37 篇', withImages >= 30 && withImages <= 45, String(withImages));
 
 const beyond = papers.find((paper) => paper.title.startsWith('BeyondMimic'));

@@ -376,12 +376,14 @@ export class AtlasView extends ItemView {
     await this.index.refresh();
     await this.reloadPalette();
     await this.loadBoard();
+    const migrated = this.normalizeYearOrder();
     this.seedYearLines();
     this.fillFieldFilter();
     this.renderAll();
     this.history = [this.snapshot()];
     this.historyIndex = 0;
     this.loaded = true;
+    if (migrated) this.saveDebounced();
   }
 
   private async reloadPalette(): Promise<void> {
@@ -565,12 +567,48 @@ export class AtlasView extends ItemView {
 
   // ── 年份横线 ────────────────────────────────────────────
 
+  /**
+   * 旧版本把今年排在最上面。若检测到年份从上到下递减，就把年带上下翻转，
+   * 同时把卡片按原来的年带一起移动，保持「卡片属于哪一年」不变。
+   */
+  private normalizeYearOrder(): boolean {
+    const lines = [...this.board.years].sort((a, b) => a.y - b.y);
+    if (lines.length < 2) return false;
+    const descending = lines.every((line, index) => index === 0 || line.year < (lines[index - 1] as YearLine).year);
+    if (!descending) return false;
+
+    const oldYs = lines.map((line) => line.y);
+    const slots = [...oldYs];
+    const deltas = new Map<string, number>();
+    const ascending = [...lines].sort((a, b) => a.year - b.year);
+    ascending.forEach((line, index) => {
+      const oldIndex = lines.indexOf(line);
+      deltas.set(line.id, (slots[index] as number) - (oldYs[oldIndex] as number));
+    });
+
+    for (const node of this.board.nodes) {
+      const center = node.y + node.h / 2;
+      let band = -1;
+      for (let index = 0; index < lines.length; index += 1) {
+        if (center >= (oldYs[index] as number)) band = index;
+      }
+      if (band < 0) continue;
+      const line = lines[band] as YearLine;
+      node.y += deltas.get(line.id) || 0;
+    }
+    for (const line of lines) {
+      const delta = deltas.get(line.id) || 0;
+      line.y += delta;
+    }
+    return true;
+  }
+
   private seedYearLines(force = false): void {
     if (!force && this.board.years.length) return;
     const endYear = new Date().getFullYear();
     const startYear = Math.min(this.plugin.settings.yearStart || 2015, endYear);
     const list: number[] = [];
-    for (let year = endYear; year >= startYear; year -= 1) list.push(year);
+    for (let year = startYear; year <= endYear; year += 1) list.push(year);
     if (!list.length) return;
     // 空画布从 120 开始，给顶部工具栏留出余量；已有卡片则从内容上方起
     const startY = this.board.nodes.length
