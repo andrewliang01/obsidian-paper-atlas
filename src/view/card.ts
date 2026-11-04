@@ -151,6 +151,7 @@ export function buildCardElement(
     model.institution || '未标注',
   );
   institution.dataset.paField = 'institution';
+  if (model.institution) institution.title = model.institution;
   institution.prepend(el('span', 'pa-inst-glyph', '🏛'));
   inner.appendChild(institution);
 
