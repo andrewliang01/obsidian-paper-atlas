@@ -906,36 +906,44 @@ export class AtlasView extends ItemView {
     this.saveDebounced();
   }
 
+  private measureCardHeight(nodeId: string): number | null {
+    const inner = this.nodeEls.get(nodeId)?.querySelector('.pa-card-inner') as HTMLElement | null;
+    const body = inner?.querySelector('.pa-under-body') as HTMLElement | null;
+    if (!inner || !body || inner.clientHeight <= 0) return null;
+    const under = body.closest('.pa-under') as HTMLElement | null;
+    const head = under?.querySelector('.pa-under-head') as HTMLElement | null;
+    const style = window.getComputedStyle(inner);
+    const gap = Number.parseFloat(style.rowGap || style.gap || '0') || 0;
+    const padding = (Number.parseFloat(style.paddingTop) || 0) + (Number.parseFloat(style.paddingBottom) || 0);
+    const children = Array.from(inner.children) as HTMLElement[];
+    let total = 7; // 顶部色条 + 卡片上下边框
+    for (const child of children) {
+      if (child === under) {
+        total += (head?.offsetHeight || 0) + body.scrollHeight + 6;
+      } else {
+        total += child.offsetHeight;
+      }
+    }
+    total += gap * Math.max(0, children.length - 1) + padding;
+    return total;
+  }
+
   private applyCoverAspect(nodeId: string, aspect: number): void {
     const node = this.getNode(nodeId);
     if (!node) return;
-    const previous = node.coverAspect ?? 9 / 16;
     node.coverAspect = aspect;
-    let changed = false;
-
-    // 宽图只会让封面变矮；卡片不跟着缩，否则会把标题、作者挤扁
-    const delta = (aspect - previous) * node.w;
-    if (delta > 1) {
-      node.h = Math.max(MIN_CARD_HEIGHT, node.h + delta);
-      changed = true;
-    }
     this.updateNodeDom(node);
 
-    // 自愈：0.2.9 曾把宽图卡片缩小过，或内容本来就装不下时，按溢出补齐
-    const inner = this.nodeEls.get(nodeId)?.querySelector('.pa-card-inner') as HTMLElement | null;
-    if (inner && inner.clientHeight > 0) {
-      const overflow = inner.scrollHeight - inner.clientHeight;
-      if (overflow > 1) {
-        node.h += overflow + 2;
-        changed = true;
+    const desired = this.measureCardHeight(nodeId);
+    if (desired && Number.isFinite(desired)) {
+      const next = Math.min(2400, Math.max(MIN_CARD_HEIGHT, Math.ceil(desired)));
+      if (Math.abs(next - node.h) > 2) {
+        node.h = next;
+        this.updateNodeDom(node);
       }
     }
-
-    if (changed) {
-      this.updateNodeDom(node);
-      this.updateEdges();
-      this.saveDebounced();
-    }
+    this.updateEdges();
+    this.saveDebounced();
     this.fitUnderstandingHeight(nodeId);
   }
 
