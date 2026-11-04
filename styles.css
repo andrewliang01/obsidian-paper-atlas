@@ -135,12 +135,12 @@
   left: 0;
   right: 0;
   top: 6px;
-  border-top: 1px dashed var(--background-modifier-border);
+  border-top: 2px solid color-mix(in srgb, var(--text-muted) 65%, transparent);
 }
 
 .pa-year-line:hover::after,
 .pa-year-line.is-dragging::after {
-  border-top-style: solid;
+  border-top-width: 3px;
   border-top-color: var(--interactive-accent);
 }
 
