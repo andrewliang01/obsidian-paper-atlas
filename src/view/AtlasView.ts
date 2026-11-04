@@ -887,10 +887,17 @@ export class AtlasView extends ItemView {
     const body = this.nodeEls.get(nodeId)?.querySelector('.pa-under-body') as HTMLElement | null;
     if (!body || body.clientHeight <= 0) return;
     const overflow = body.scrollHeight - body.clientHeight;
-    if (overflow <= 2) return;
-    const next = Math.min(1000, node.h + overflow + 4);
-    if (next <= node.h + 1) return;
+    if (overflow <= 2) {
+      body.classList.remove('is-clipped');
+      return;
+    }
+    const next = Math.min(2400, node.h + overflow + 4);
+    if (next <= node.h + 1) {
+      body.classList.add('is-clipped');
+      return;
+    }
     node.h = next;
+    body.classList.remove('is-clipped');
     this.updateNodeDom(node);
     this.updateEdges();
     this.saveDebounced();

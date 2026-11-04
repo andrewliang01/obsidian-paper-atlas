@@ -491,8 +491,11 @@
 .pa-node:not(.is-expanded) .pa-under-body {
   display: block;
   overflow: hidden;
-  -webkit-mask-image: linear-gradient(to bottom, #000 82%, transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 82%, transparent 100%);
+}
+
+.pa-node:not(.is-expanded) .pa-under-body.is-clipped {
+  -webkit-mask-image: linear-gradient(to bottom, #000 86%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 86%, transparent 100%);
 }
 
 .pa-node.is-expanded .pa-under-body {
