@@ -1,6 +1,6 @@
 {
   "name": "paper-atlas",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "论文图谱：自绘论文画布与论文卡片仓",
   "main": "main.js",
   "scripts": {

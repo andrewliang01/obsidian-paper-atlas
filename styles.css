@@ -170,6 +170,12 @@
   color: var(--interactive-accent);
 }
 
+.pa-year-band-year {
+  font-family: 'Times New Roman', Times, Georgia, serif;
+  font-weight: 700;
+  font-style: normal;
+}
+
 .pa-year-band-count {
   font-size: 11px;
   font-weight: 400;
