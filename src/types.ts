@@ -116,7 +116,7 @@ export interface FieldPaletteEntry {
 }
 
 export const CARD_WIDTH = 380;
-export const CARD_HEIGHT = 470;
+export const CARD_HEIGHT = 540;
 export const MIN_CARD_WIDTH = 260;
 export const MIN_CARD_HEIGHT = 200;
 

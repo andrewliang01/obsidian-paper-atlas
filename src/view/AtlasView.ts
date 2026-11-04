@@ -459,8 +459,15 @@ export class AtlasView extends ItemView {
     this.board.viewport = { ...this.viewport };
     if (!this.world) return;
     const { x, y, z } = this.viewport;
+    const previousZoom = this.root.dataset.zoom;
     this.world.style.transform = `translate(${x}px, ${y}px) scale(${z})`;
-    this.root.dataset.zoom = z < 0.3 ? 'far' : 'near';
+    const zoomMode = z < 0.3 ? 'far' : 'near';
+    this.root.dataset.zoom = zoomMode;
+    if (previousZoom === 'far' && zoomMode === 'near') {
+      window.setTimeout(() => {
+        for (const node of this.board.nodes) this.fitUnderstandingHeight(node.id);
+      }, 60);
+    }
     this.stage.style.setProperty('--pa-grid', `${24 * z}px`);
     this.stage.style.backgroundPosition = `${x}px ${y}px`;
     this.root.style.setProperty('--pa-inv-zoom', String(Math.min(8, Math.max(0.35, 1 / z))));
@@ -489,9 +496,12 @@ export class AtlasView extends ItemView {
       node,
       (path) => this.coverUrl(path),
       (body, text, source) => {
-        void MarkdownRenderer.render(this.app, text, body, source, this).catch(() => {
-          body.innerHTML = renderLiteMarkdown(text);
-        });
+        void MarkdownRenderer.render(this.app, text, body, source, this)
+          .then(() => this.fitUnderstandingHeight(node.id))
+          .catch(() => {
+            body.innerHTML = renderLiteMarkdown(text);
+            this.fitUnderstandingHeight(node.id);
+          });
       },
       (aspect) => this.applyCoverAspect(node.id, aspect),
     );
@@ -517,6 +527,7 @@ export class AtlasView extends ItemView {
     const resize = el('div', 'pa-resize');
     resize.title = '拖动调整卡片大小';
     nodeEl.appendChild(resize);
+    window.setTimeout(() => this.fitUnderstandingHeight(node.id), 0);
     return nodeEl;
   }
 
@@ -869,6 +880,22 @@ export class AtlasView extends ItemView {
     this.updateEdgeToolbar();
   }
 
+  /** 让折叠态的卡片长到能完整显示理解正文，最多 1000px，更多交给“展开”。 */
+  private fitUnderstandingHeight(nodeId: string): void {
+    const node = this.getNode(nodeId);
+    if (!node || node.expanded) return;
+    const body = this.nodeEls.get(nodeId)?.querySelector('.pa-under-body') as HTMLElement | null;
+    if (!body || body.clientHeight <= 0) return;
+    const overflow = body.scrollHeight - body.clientHeight;
+    if (overflow <= 2) return;
+    const next = Math.min(1000, node.h + overflow + 4);
+    if (next <= node.h + 1) return;
+    node.h = next;
+    this.updateNodeDom(node);
+    this.updateEdges();
+    this.saveDebounced();
+  }
+
   private applyCoverAspect(nodeId: string, aspect: number): void {
     const node = this.getNode(nodeId);
     if (!node) return;
@@ -899,6 +926,7 @@ export class AtlasView extends ItemView {
       this.updateEdges();
       this.saveDebounced();
     }
+    this.fitUnderstandingHeight(nodeId);
   }
 
   private updateNodeDom(node: AtlasNode): void {
