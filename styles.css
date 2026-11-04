@@ -271,6 +271,14 @@
   padding: 11px 14px 10px;
 }
 
+.pa-title,
+.pa-meta,
+.pa-authors,
+.pa-inst,
+.pa-foot {
+  flex: 0 0 auto;
+}
+
 .pa-title {
   display: -webkit-box;
   overflow: hidden;

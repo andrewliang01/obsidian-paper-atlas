@@ -874,12 +874,31 @@ export class AtlasView extends ItemView {
     if (!node) return;
     const previous = node.coverAspect ?? 9 / 16;
     node.coverAspect = aspect;
+    let changed = false;
+
+    // 宽图只会让封面变矮；卡片不跟着缩，否则会把标题、作者挤扁
     const delta = (aspect - previous) * node.w;
-    if (Math.abs(delta) < 1) return;
-    node.h = Math.max(MIN_CARD_HEIGHT, node.h + delta);
+    if (delta > 1) {
+      node.h = Math.max(MIN_CARD_HEIGHT, node.h + delta);
+      changed = true;
+    }
     this.updateNodeDom(node);
-    this.updateEdges();
-    this.saveDebounced();
+
+    // 自愈：0.2.9 曾把宽图卡片缩小过，或内容本来就装不下时，按溢出补齐
+    const inner = this.nodeEls.get(nodeId)?.querySelector('.pa-card-inner') as HTMLElement | null;
+    if (inner && inner.clientHeight > 0) {
+      const overflow = inner.scrollHeight - inner.clientHeight;
+      if (overflow > 1) {
+        node.h += overflow + 2;
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      this.updateNodeDom(node);
+      this.updateEdges();
+      this.saveDebounced();
+    }
   }
 
   private updateNodeDom(node: AtlasNode): void {
