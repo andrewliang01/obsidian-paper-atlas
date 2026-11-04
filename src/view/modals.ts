@@ -1,4 +1,4 @@
-import { App, Modal } from 'obsidian';
+import { App, Component, MarkdownRenderer, Modal } from 'obsidian';
 import type { PaperImage } from '../types';
 import { el } from './dom';
 
@@ -130,11 +130,15 @@ export class TextPromptModal extends Modal {
 
 
 export class TextAreaModal extends Modal {
+  private renderComponent: Component | null = null;
+  private renderTimer: number | null = null;
+
   constructor(
     app: App,
     private readonly heading: string,
     private readonly initial: string,
     private readonly placeholder: string,
+    private readonly sourcePath: string,
     private readonly onSave: (value: string) => void,
   ) {
     super(app);
@@ -142,17 +146,71 @@ export class TextAreaModal extends Modal {
 
   onOpen(): void {
     this.titleEl.setText(this.heading);
-    this.contentEl.addClass('pa-modal');
-    this.modalEl.style.width = '640px';
-    this.modalEl.style.maxWidth = '92vw';
+    this.contentEl.addClass('pa-modal', 'pa-rich-editor');
+    this.modalEl.style.width = '960px';
+    this.modalEl.style.maxWidth = '94vw';
 
-    const area = el('textarea', 'pa-input pa-textarea');
+    const toolbar = el('div', 'pa-rich-toolbar');
+    const buttons: Array<[string, string, string, string]> = [
+      ['B', '粗体', '**', '**'],
+      ['H', '高亮', '==', '=='],
+      ['∑', '行内公式', '$', '$'],
+      ['∫', '块公式', '\n$$\n', '\n$$\n'],
+      ['•', '列表', '\n- ', ''],
+    ];
+    const area = el('textarea', 'pa-input pa-textarea pa-rich-input');
     area.value = this.initial;
-    area.rows = 14;
+    area.rows = 16;
     area.placeholder = this.placeholder;
-    this.contentEl.appendChild(area);
-    this.contentEl.appendChild(el('p', 'pa-modal-hint', 'Ctrl/Cmd + Enter 保存，Esc 取消'));
 
+    const wrapSelection = (before: string, after: string): void => {
+      const start = area.selectionStart ?? area.value.length;
+      const end = area.selectionEnd ?? area.value.length;
+      const selected = area.value.slice(start, end) || (before === '$' ? 'x_{t}' : '文字');
+      area.setRangeText(`${before}${selected}${after}`, start, end, 'end');
+      area.focus();
+      schedulePreview();
+    };
+    for (const [label, title, before, after] of buttons) {
+      const btn = el('button', 'pa-btn pa-rich-btn', label);
+      btn.type = 'button';
+      btn.title = title;
+      btn.setAttribute('aria-label', title);
+      btn.addEventListener('click', () => wrapSelection(before, after));
+      toolbar.appendChild(btn);
+    }
+    this.contentEl.appendChild(toolbar);
+
+    const split = el('div', 'pa-rich-split');
+    split.appendChild(area);
+
+    const preview = el('div', 'pa-rich-preview markdown-rendered');
+    split.appendChild(preview);
+    this.contentEl.appendChild(split);
+
+    const renderPreview = (): void => {
+      preview.empty();
+      if (!area.value.trim()) {
+        preview.appendChild(el('div', 'pa-under-empty', '在左侧输入理解，这里会实时渲染 Markdown 与公式。'));
+        return;
+      }
+      const component = this.renderComponent;
+      if (!component) return;
+      void MarkdownRenderer.render(this.app, area.value, preview, this.sourcePath, component).catch(() => {
+        preview.textContent = area.value;
+      });
+    };
+    const schedulePreview = (): void => {
+      if (this.renderTimer !== null) window.clearTimeout(this.renderTimer);
+      this.renderTimer = window.setTimeout(renderPreview, 180);
+    };
+
+    this.renderComponent = new Component();
+    this.renderComponent.load();
+    area.addEventListener('input', schedulePreview);
+    renderPreview();
+
+    this.contentEl.appendChild(el('p', 'pa-modal-hint', '左侧编辑，右侧实时预览；Ctrl/Cmd + Enter 保存，Esc 取消'));
     const footer = el('div', 'pa-modal-footer');
     const save = el('button', 'pa-btn mod-cta', '保存');
     save.type = 'button';
@@ -181,6 +239,10 @@ export class TextAreaModal extends Modal {
   }
 
   onClose(): void {
+    if (this.renderTimer !== null) window.clearTimeout(this.renderTimer);
+    this.renderTimer = null;
+    this.renderComponent?.unload();
+    this.renderComponent = null;
     this.contentEl.empty();
   }
 }

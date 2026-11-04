@@ -220,6 +220,8 @@ async function main(): Promise<void> {
   const firstEdge = internal.board.edges[0] as unknown as { id: string };
   internal.edgeSelection = firstEdge.id;
   internal.refreshSelection();
+  const line2026 = internal.board.years.find((line) => line.year === 2026)?.y ?? 0;
+  writePreview('preview-zoom.html', 1.6, 40, 320 - (line2026 + 100) * 1.6);
   writePreview('preview-near.html', 0.78, 40, 40);
   internal.edgeSelection = null;
   internal.refreshSelection();

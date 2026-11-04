@@ -1,4 +1,4 @@
-import { ItemView, Menu, Notice, TFile, ViewStateResult, WorkspaceLeaf } from 'obsidian';
+import { ItemView, MarkdownRenderer, Menu, Notice, TFile, ViewStateResult, WorkspaceLeaf } from 'obsidian';
 import type PaperAtlasPlugin from '../main';
 import type {
   AtlasEdge,
@@ -15,6 +15,7 @@ import { PaperIndex } from '../core/index';
 import { autoLayout, nodesBounds } from '../core/layout';
 import { clonePalette, loadPalette, paletteFor, type FieldPalette } from '../core/colors';
 import { buildCardElement, resolveCard, type CardModel } from './card';
+import { renderLiteMarkdown } from '../core/text';
 import { draftGeometry, edgeGeometry, nearestSide, sidePoint } from './edges';
 import { button, clamp, debounce, el } from './dom';
 import { CoverPickerModal, TextAreaModal, TextPromptModal } from './modals';
@@ -483,7 +484,11 @@ export class AtlasView extends ItemView {
   private createNodeEl(node: AtlasNode): HTMLElement {
     const paper = this.index.get(node.paper);
     const model = resolveCard(node, paper, this.palette);
-    const card = buildCardElement(model, node, (path) => this.coverUrl(path));
+    const card = buildCardElement(model, node, (path) => this.coverUrl(path), (body, text, source) => {
+      void MarkdownRenderer.render(this.app, text, body, source, this).catch(() => {
+        body.innerHTML = renderLiteMarkdown(text);
+      });
+    });
 
     const nodeEl = el('div', 'pa-node');
     nodeEl.dataset.id = node.id;
@@ -1380,6 +1385,24 @@ export class AtlasView extends ItemView {
     const nodeEl = target.closest('.pa-node') as HTMLElement | null;
     if (!nodeEl?.dataset.id) return;
 
+    const internal = target.closest('a.internal-link') as HTMLAnchorElement | null;
+    if (internal) {
+      evt.preventDefault();
+      const href = internal.dataset.href || internal.getAttribute('href');
+      if (href) {
+        const node = this.getNode(nodeEl.dataset.id);
+        if (node) void this.app.workspace.openLinkText(href, node.paper, true);
+      }
+      return;
+    }
+
+    const external = target.closest('a.external-link') as HTMLAnchorElement | null;
+    if (external) {
+      evt.preventDefault();
+      window.open(external.href, '_blank');
+      return;
+    }
+
     const wiki = target.closest('.pa-wikilink') as HTMLElement | null;
     if (wiki?.dataset.href) {
       evt.preventDefault();
@@ -1416,10 +1439,23 @@ export class AtlasView extends ItemView {
     const node = this.getNode(nodeId);
     if (!node) return;
     const before = this.snapshot();
-    node.expanded = !node.expanded;
-    node.h = Math.max(MIN_CARD_HEIGHT, node.h + (node.expanded ? EXPAND_DELTA : -EXPAND_DELTA));
+
+    if (node.expanded) {
+      node.expanded = false;
+      node.h = Math.max(MIN_CARD_HEIGHT, node.baseHeight ?? node.h - EXPAND_DELTA);
+      delete node.baseHeight;
+    } else {
+      // 折叠时 max-height 只裁切显示，scrollHeight 仍是完整内容高度
+      const body = this.nodeEls.get(nodeId)?.querySelector('.pa-under-body') as HTMLElement | null;
+      const extra = body ? Math.max(0, body.scrollHeight - body.clientHeight) : 0;
+      node.baseHeight = node.h;
+      node.expanded = true;
+      node.h = Math.max(node.h, node.h + extra + 6);
+    }
+
     this.recordHistory(before);
     this.refreshNode(nodeId);
+    this.updateEdges();
     this.saveDebounced();
   }
 
@@ -1439,6 +1475,7 @@ export class AtlasView extends ItemView {
         '编辑理解',
         value,
         '写下你对这篇论文的理解……',
+        node.paper,
         (next) => this.applyEdit(nodeId, 'understanding', next),
       ).open();
       return;

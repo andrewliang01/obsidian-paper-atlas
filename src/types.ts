@@ -68,6 +68,8 @@ export interface AtlasNode {
   overrides?: CardOverrides;
   /** whether the 理解 block is expanded */
   expanded?: boolean;
+  /** card height before expanding, restored on collapse */
+  baseHeight?: number;
 }
 
 export interface YearLine {

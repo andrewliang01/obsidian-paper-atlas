@@ -101,6 +101,7 @@ export function buildCardElement(
   model: CardModel,
   node: AtlasNode,
   resolveCoverUrl: (path: string) => string,
+  renderMarkdown?: (el: HTMLElement, markdown: string, sourcePath: string) => void,
 ): CardElements {
   const root = el('div', 'pa-card');
   root.style.setProperty('--pa-accent', model.accent);
@@ -187,6 +188,10 @@ export function buildCardElement(
   const body = el('div', 'pa-under-body');
   if (model.understanding.trim()) {
     body.innerHTML = renderLiteMarkdown(model.understanding);
+    if (renderMarkdown && /[$*_[\]`]|(^|\n)\s*[-*+]\s|(^|\n)#{1,6}\s/.test(model.understanding)) {
+      body.innerHTML = '';
+      renderMarkdown(body, model.understanding, node.paper);
+    }
   } else {
     body.appendChild(el('div', 'pa-under-empty', '暂无理解，双击卡片右上角的 ⋯ 可以补充'));
   }

@@ -52,6 +52,7 @@ function parseNode(raw: unknown): AtlasNode | null {
     h: Math.max(140, num(source.h, 470)),
     overrides: parseOverrides(source.overrides),
     expanded: source.expanded === true,
+    baseHeight: typeof source.baseHeight === 'number' ? source.baseHeight : undefined,
   };
 }
 
@@ -142,6 +143,7 @@ export function serializeBoard(board: AtlasBoard): string {
           h: Math.round(node.h),
         };
         if (node.expanded) out.expanded = true;
+        if (node.baseHeight) out.baseHeight = Math.round(node.baseHeight);
         if (node.overrides && Object.keys(node.overrides).length) out.overrides = node.overrides;
         return out;
       }),

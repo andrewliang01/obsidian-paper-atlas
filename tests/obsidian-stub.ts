@@ -58,6 +58,17 @@ export class PluginSettingTab {
   }
 }
 
+export class Component {
+  load(): void {}
+  unload(): void {}
+}
+
+export class MarkdownRenderer {
+  static async render(): Promise<void> {
+    /* preview keeps the lightweight HTML already in place */
+  }
+}
+
 export class Setting {
   constructor(_el?: unknown) {}
 }
