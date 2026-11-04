@@ -482,8 +482,9 @@
 
 .pa-node:not(.is-expanded) .pa-under-body {
   display: block;
-  max-height: calc(1.55em * 3);
   overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 82%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 82%, transparent 100%);
 }
 
 .pa-node.is-expanded .pa-under-body {
