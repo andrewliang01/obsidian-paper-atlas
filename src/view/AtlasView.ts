@@ -1173,6 +1173,12 @@ export class AtlasView extends ItemView {
       return;
     }
 
+    if (evt.button === 1 || this.spaceDown || evt.altKey) {
+      evt.preventDefault();
+      this.beginPan(evt);
+      return;
+    }
+
     this.beginMarquee(evt);
   }
 
