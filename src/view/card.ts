@@ -168,7 +168,8 @@ export function buildCardElement(
     img.draggable = false;
     img.alt = '';
     img.addEventListener('load', () => {
-      if (!img.naturalWidth) return;
+      // 旧卡片可能已被替换，迟到的 load 不能把旧比例写回去
+      if (!img.isConnected || !img.naturalWidth) return;
       const aspect = Math.min(1.5, Math.max(0.28, img.naturalHeight / img.naturalWidth));
       cover.style.aspectRatio = `1 / ${aspect}`;
       onCoverAspect?.(aspect);

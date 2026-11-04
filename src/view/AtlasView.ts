@@ -917,11 +917,19 @@ export class AtlasView extends ItemView {
     const style = window.getComputedStyle(inner);
     const gap = Number.parseFloat(style.rowGap || style.gap || '0') || 0;
     const padding = (Number.parseFloat(style.paddingTop) || 0) + (Number.parseFloat(style.paddingBottom) || 0);
+    // scrollHeight 在内容比容器短时会等于容器高度，量不出“真实内容高度”；Range 可以
+    const range = document.createRange();
+    range.selectNodeContents(body);
+    const rangeHeight = range.getBoundingClientRect().height;
+    range.detach?.();
+    const text = body.textContent || '';
+    const fallbackHeight = Math.ceil(text.length / 32) * 18.6;
+    const bodyHeight = rangeHeight > 1 ? rangeHeight : fallbackHeight;
     const children = Array.from(inner.children) as HTMLElement[];
     let total = 7; // 顶部色条 + 卡片上下边框
     for (const child of children) {
       if (child === under) {
-        total += (head?.offsetHeight || 0) + body.scrollHeight + 6;
+        total += (head?.offsetHeight || 0) + bodyHeight + 6;
       } else {
         total += child.offsetHeight;
       }
