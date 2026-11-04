@@ -1270,17 +1270,3 @@ textarea.pa-editor {
   color: var(--text-faint);
   font-variant-numeric: tabular-nums;
 }
-
-
-.pa-image-modal {
-  width: auto;
-  max-width: 92vw;
-}
-
-.pa-image-preview {
-  display: block;
-  max-width: 88vw;
-  max-height: 80vh;
-  margin: 0 auto;
-  object-fit: contain;
-}

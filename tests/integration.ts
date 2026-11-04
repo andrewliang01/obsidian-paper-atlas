@@ -339,26 +339,19 @@ async function main(): Promise<void> {
     (el) => el.querySelector('.pa-cover-img'),
   ) as HTMLElement | undefined;
   if (coverNode) {
-    const { CoverPickerModal, ImagePreviewModal } = await import('../src/view/modals');
+    const { CoverPickerModal } = await import('../src/view/modals');
     let pickerOpened = false;
-    let previewOpened = false;
     const originalPicker = CoverPickerModal.prototype.open;
-    const originalPreview = ImagePreviewModal.prototype.open;
     CoverPickerModal.prototype.open = function openPicker(): void {
       pickerOpened = true;
-    };
-    ImagePreviewModal.prototype.open = function openPreview(): void {
-      previewOpened = true;
     };
     try {
       const img = coverNode.querySelector('.pa-cover-img') as HTMLElement;
       img.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     } finally {
       CoverPickerModal.prototype.open = originalPicker;
-      ImagePreviewModal.prototype.open = originalPreview;
     }
-    check('点击封面图片打开预览而不是换图', previewOpened && !pickerOpened,
-      `preview=${previewOpened} picker=${pickerOpened}`);
+    check('点击封面图片直接打开换封面', pickerOpened, `picker=${pickerOpened}`);
   } else {
     check('找到带封面的卡片', false);
   }

@@ -18,7 +18,7 @@ import { buildCardElement, resolveCard, type CardModel } from './card';
 import { renderLiteMarkdown } from '../core/text';
 import { draftGeometry, edgeGeometry, nearestSide, sidePoint } from './edges';
 import { button, clamp, debounce, el } from './dom';
-import { CoverPickerModal, ImagePreviewModal, TextAreaModal, TextPromptModal } from './modals';
+import { CoverPickerModal, TextAreaModal, TextPromptModal } from './modals';
 
 export const ATLAS_VIEW_TYPE = 'paper-atlas-view';
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -1506,17 +1506,6 @@ export class AtlasView extends ItemView {
       evt.stopPropagation();
       this.openCoverPicker(nodeId);
       return;
-    }
-    if (action === 'view-cover') {
-      evt.preventDefault();
-      evt.stopPropagation();
-      const node = this.getNode(nodeId);
-      if (!node) return;
-      const paper = this.index.get(node.paper);
-      const model = resolveCard(node, paper, this.palette);
-      if (model.cover) {
-        new ImagePreviewModal(this.app, this.coverUrl(model.cover), model.title).open();
-      }
     }
   }
 
