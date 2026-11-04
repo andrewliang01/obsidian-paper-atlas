@@ -70,6 +70,8 @@ export interface AtlasNode {
   expanded?: boolean;
   /** card height before expanding, restored on collapse */
   baseHeight?: number;
+  /** natural cover aspect ratio (height / width), used to size the card */
+  coverAspect?: number;
 }
 
 export interface YearLine {

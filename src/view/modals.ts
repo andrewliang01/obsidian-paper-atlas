@@ -246,3 +246,27 @@ export class TextAreaModal extends Modal {
     this.contentEl.empty();
   }
 }
+
+
+export class ImagePreviewModal extends Modal {
+  constructor(
+    app: App,
+    private readonly src: string,
+    private readonly caption: string,
+  ) {
+    super(app);
+  }
+
+  onOpen(): void {
+    this.titleEl.setText(this.caption || '查看图片');
+    this.contentEl.addClass('pa-modal', 'pa-image-modal');
+    const img = el('img', 'pa-image-preview');
+    img.src = this.src;
+    img.alt = this.caption;
+    this.contentEl.appendChild(img);
+  }
+
+  onClose(): void {
+    this.contentEl.empty();
+  }
+}

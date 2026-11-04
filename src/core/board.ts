@@ -53,6 +53,7 @@ function parseNode(raw: unknown): AtlasNode | null {
     overrides: parseOverrides(source.overrides),
     expanded: source.expanded === true,
     baseHeight: typeof source.baseHeight === 'number' ? source.baseHeight : undefined,
+    coverAspect: typeof source.coverAspect === 'number' ? source.coverAspect : undefined,
   };
 }
 
@@ -144,6 +145,7 @@ export function serializeBoard(board: AtlasBoard): string {
         };
         if (node.expanded) out.expanded = true;
         if (node.baseHeight) out.baseHeight = Math.round(node.baseHeight);
+        if (node.coverAspect) out.coverAspect = Math.round(node.coverAspect * 1000) / 1000;
         if (node.overrides && Object.keys(node.overrides).length) out.overrides = node.overrides;
         return out;
       }),

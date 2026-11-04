@@ -18,7 +18,7 @@ import { buildCardElement, resolveCard, type CardModel } from './card';
 import { renderLiteMarkdown } from '../core/text';
 import { draftGeometry, edgeGeometry, nearestSide, sidePoint } from './edges';
 import { button, clamp, debounce, el } from './dom';
-import { CoverPickerModal, TextAreaModal, TextPromptModal } from './modals';
+import { CoverPickerModal, ImagePreviewModal, TextAreaModal, TextPromptModal } from './modals';
 
 export const ATLAS_VIEW_TYPE = 'paper-atlas-view';
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -484,11 +484,17 @@ export class AtlasView extends ItemView {
   private createNodeEl(node: AtlasNode): HTMLElement {
     const paper = this.index.get(node.paper);
     const model = resolveCard(node, paper, this.palette);
-    const card = buildCardElement(model, node, (path) => this.coverUrl(path), (body, text, source) => {
-      void MarkdownRenderer.render(this.app, text, body, source, this).catch(() => {
-        body.innerHTML = renderLiteMarkdown(text);
-      });
-    });
+    const card = buildCardElement(
+      model,
+      node,
+      (path) => this.coverUrl(path),
+      (body, text, source) => {
+        void MarkdownRenderer.render(this.app, text, body, source, this).catch(() => {
+          body.innerHTML = renderLiteMarkdown(text);
+        });
+      },
+      (aspect) => this.applyCoverAspect(node.id, aspect),
+    );
 
     const nodeEl = el('div', 'pa-node');
     nodeEl.dataset.id = node.id;
@@ -861,6 +867,19 @@ export class AtlasView extends ItemView {
       }
     }
     this.updateEdgeToolbar();
+  }
+
+  private applyCoverAspect(nodeId: string, aspect: number): void {
+    const node = this.getNode(nodeId);
+    if (!node) return;
+    const previous = node.coverAspect ?? 9 / 16;
+    node.coverAspect = aspect;
+    const delta = (aspect - previous) * node.w;
+    if (Math.abs(delta) < 1) return;
+    node.h = Math.max(MIN_CARD_HEIGHT, node.h + delta);
+    this.updateNodeDom(node);
+    this.updateEdges();
+    this.saveDebounced();
   }
 
   private updateNodeDom(node: AtlasNode): void {
@@ -1432,6 +1451,18 @@ export class AtlasView extends ItemView {
       evt.preventDefault();
       evt.stopPropagation();
       this.openCoverPicker(nodeId);
+      return;
+    }
+    if (action === 'view-cover') {
+      evt.preventDefault();
+      evt.stopPropagation();
+      const node = this.getNode(nodeId);
+      if (!node) return;
+      const paper = this.index.get(node.paper);
+      const model = resolveCard(node, paper, this.palette);
+      if (model.cover) {
+        new ImagePreviewModal(this.app, this.coverUrl(model.cover), model.title).open();
+      }
     }
   }
 

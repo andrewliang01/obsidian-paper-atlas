@@ -102,6 +102,7 @@ export function buildCardElement(
   node: AtlasNode,
   resolveCoverUrl: (path: string) => string,
   renderMarkdown?: (el: HTMLElement, markdown: string, sourcePath: string) => void,
+  onCoverAspect?: (aspect: number) => void,
 ): CardElements {
   const root = el('div', 'pa-card');
   root.style.setProperty('--pa-accent', model.accent);
@@ -157,13 +158,22 @@ export function buildCardElement(
   inner.appendChild(institution);
 
   const cover = el('div', 'pa-cover');
-  cover.dataset.paAction = 'cover';
+  cover.dataset.paAction = 'view-cover';
+  cover.title = '点击查看原图';
+  const knownAspect = node.coverAspect ?? 9 / 16;
+  cover.style.aspectRatio = `1 / ${knownAspect}`;
   if (model.cover) {
     const img = el('img', 'pa-cover-img');
-    img.src = resolveCoverUrl(model.cover);
     img.loading = 'lazy';
     img.draggable = false;
     img.alt = '';
+    img.addEventListener('load', () => {
+      if (!img.naturalWidth) return;
+      const aspect = Math.min(1.5, Math.max(0.28, img.naturalHeight / img.naturalWidth));
+      cover.style.aspectRatio = `1 / ${aspect}`;
+      onCoverAspect?.(aspect);
+    });
+    img.src = resolveCoverUrl(model.cover);
     cover.appendChild(img);
     const swap = el('button', 'pa-cover-swap', '更换封面');
     swap.type = 'button';
